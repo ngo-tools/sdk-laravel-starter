@@ -1,0 +1,32 @@
+{
+    "name": "ngo-tools/sdk-laravel-starter",
+    "description": "Laravel Starter Package for building NGO.Tools extensions",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["ngo", "ngotools", "laravel", "extension", "starter"],
+    "homepage": "https://github.com/ngo-tools/sdk-laravel-starter",
+    "authors": [
+        {
+            "name": "Sebastian Thielen",
+            "homepage": "https://ngo.tools"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "NgoTools\\LaravelStarter\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "NgoTools\\LaravelStarter\\NgotoolsServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
