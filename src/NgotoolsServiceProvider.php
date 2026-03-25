@@ -38,5 +38,13 @@ class NgotoolsServiceProvider extends ServiceProvider
 
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'ngotools');
         $this->loadRoutesFrom(__DIR__ . '/../routes/ngotools.php');
+
+        if (file_exists($uiRoutes = base_path('routes/ngotools-ui.php'))) {
+            $this->loadRoutesFrom($uiRoutes);
+        }
+
+        if (file_exists($webhookRoutes = base_path('routes/ngotools-webhooks.php'))) {
+            $this->loadRoutesFrom($webhookRoutes);
+        }
     }
 }
