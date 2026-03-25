@@ -5,7 +5,6 @@ namespace NgoTools\LaravelStarter\Commands;
 use Illuminate\Console\Command;
 use NgoTools\LaravelStarter\Support\ManifestGenerator;
 
-use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\text;
 
@@ -16,7 +15,10 @@ class InstallCommand extends Command
         {--api= : NGO.Tools API base URL}
         {--port=8001 : Development server port}
         {--name= : App name}
-        {--non-interactive : Skip interactive prompts and use defaults}';
+        {--ui-slots= : Comma-separated UI slots (navigation_entry,dashboard_card,contact_tab)}
+        {--webhooks= : Comma-separated webhook events (contact.created,donation.created,...)}
+        {--scopes= : Comma-separated API scopes (contacts:read,donations:read,...)}
+        {--non-interactive : Skip interactive prompts and use provided flags}';
 
     protected $description = 'Set up a new NGO.Tools app with interactive configuration';
 
@@ -35,7 +37,6 @@ class InstallCommand extends Command
         $apiUrl = $this->option('api');
         $port = (int) $this->option('port');
 
-        // Interactive feature selection
         if (! $this->option('non-interactive')) {
             $uiSlots = multiselect(
                 label: 'Which UI integrations do you need?',
@@ -74,9 +75,9 @@ class InstallCommand extends Command
                 default: ['contacts:read'],
             );
         } else {
-            $uiSlots = ['navigation_entry'];
-            $webhookEvents = [];
-            $scopes = ['contacts:read'];
+            $uiSlots = $this->parseCsv($this->option('ui-slots'), ['navigation_entry']);
+            $webhookEvents = $this->parseCsv($this->option('webhooks'), []);
+            $scopes = $this->parseCsv($this->option('scopes'), ['contacts:read']);
         }
 
         // Publish config
@@ -130,6 +131,15 @@ class InstallCommand extends Command
         $this->components->info('Run `php artisan ngotools:dev` to start the development server with tunnel.');
 
         return self::SUCCESS;
+    }
+
+    protected function parseCsv(?string $value, array $default): array
+    {
+        if (! $value) {
+            return $default;
+        }
+
+        return array_filter(array_map('trim', explode(',', $value)));
     }
 
     protected function writeEnvValue(string $key, mixed $value): void
@@ -201,6 +211,7 @@ PHP;
                 'navigation_entry' => "Route::get('ui', fn () => view('ngotools::pages.navigation-page'));\n",
                 'dashboard_card' => "Route::get('ui/widget', fn () => view('ngotools::pages.dashboard-widget'));\n",
                 'contact_tab' => "Route::get('ui/contact', fn () => view('ngotools::pages.contact-tab'));\n",
+                default => '',
             };
         }
 
