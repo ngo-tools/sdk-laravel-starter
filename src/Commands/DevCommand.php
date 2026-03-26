@@ -23,16 +23,16 @@ class DevCommand extends Command
         $port = (int) ($this->option('port') ?? config('ngotools.port', 8001));
         $devToken = config('ngotools.dev_token');
         $apiUrl = config('ngotools.api_url');
+        $isConnected = $devToken && $apiUrl;
 
-        if (! $devToken || ! $apiUrl) {
-            $this->components->error('NGOTOOLS_DEV_TOKEN and NGOTOOLS_API_URL must be set in .env');
-            $this->components->info('Run the bootstrap command first to set up your app.');
-
-            return self::FAILURE;
+        if ($isConnected) {
+            $this->registerShutdownHandler($devToken, $apiUrl);
+        } else {
+            $this->registerShutdownHandler(null, null);
+            $this->components->warn('Not connected to an NGO.Tools instance. Running in local-only mode.');
+            $this->components->info('Run `ngotools connect` to link your app with an instance.');
+            $this->newLine();
         }
-
-        // Register shutdown handler for cleanup
-        $this->registerShutdownHandler($devToken, $apiUrl);
 
         // Start Laravel dev server
         $this->components->info("Starting development server on port {$port}...");
@@ -42,7 +42,7 @@ class DevCommand extends Command
 
         sleep(2); // Give server time to start
 
-        if ($this->option('no-tunnel')) {
+        if ($this->option('no-tunnel') || ! $isConnected) {
             $this->components->info("Server running at http://localhost:{$port}");
             $this->components->info('Press Ctrl+C to stop.');
 
@@ -138,7 +138,7 @@ class DevCommand extends Command
         return self::SUCCESS;
     }
 
-    protected function registerShutdownHandler(string $devToken, string $apiUrl): void
+    protected function registerShutdownHandler(?string $devToken, ?string $apiUrl): void
     {
         pcntl_async_signals(true);
 
@@ -147,13 +147,15 @@ class DevCommand extends Command
             $this->components->info('Shutting down...');
 
             // Deactivate tunnel
-            try {
-                Http::delete("{$apiUrl}/api/tools-dev/tunnel-url", [
-                    'dev_token' => $devToken,
-                ]);
-                $this->components->info('Tunnel deactivated.');
-            } catch (\Exception) {
-                // Ignore errors during cleanup
+            if ($devToken && $apiUrl) {
+                try {
+                    Http::delete("{$apiUrl}/api/tools-dev/tunnel-url", [
+                        'dev_token' => $devToken,
+                    ]);
+                    $this->components->info('Tunnel deactivated.');
+                } catch (\Exception) {
+                    // Ignore errors during cleanup
+                }
             }
 
             // Stop processes
