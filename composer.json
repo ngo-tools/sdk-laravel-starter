@@ -15,6 +15,9 @@
         "php": "^8.2",
         "laravel/framework": "^11.0|^12.0|^13.0"
     },
+    "suggest": {
+        "laravel/boost": "AI coding guidelines for this package (auto-discovered by boost:install)"
+    },
     "autoload": {
         "psr-4": {
             "NgoTools\\LaravelStarter\\": "src/"

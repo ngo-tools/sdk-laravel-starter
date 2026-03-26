@@ -3,7 +3,9 @@
 namespace NgoTools\LaravelStarter\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Process;
 
+use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\text;
 
@@ -113,10 +115,47 @@ class InstallCommand extends Command
         $items[] = 'Routes: routes/ngotools-ui.php';
         $this->components->bulletList($items);
 
+        // Install Laravel Boost with AI guidelines
+        $this->installBoost();
+
         $this->newLine();
         $this->components->info('Run `php artisan ngotools:dev` to start the development server with tunnel.');
 
         return self::SUCCESS;
+    }
+
+    protected function installBoost(): void
+    {
+        $boostInstalled = class_exists(\Laravel\Boost\BoostServiceProvider::class);
+
+        if ($boostInstalled) {
+            $this->components->info('Laravel Boost is already installed, updating guidelines...');
+            $this->callSilently('boost:install', ['--no-interaction' => true]);
+
+            return;
+        }
+
+        $shouldInstall = $this->option('non-interactive')
+            || confirm(
+                label: 'Install Laravel Boost? (AI coding guidelines for your editor)',
+                default: true,
+            );
+
+        if (! $shouldInstall) {
+            return;
+        }
+
+        $this->components->info('Installing Laravel Boost...');
+
+        $result = Process::run('composer require laravel/boost --dev --no-interaction');
+
+        if (! $result->successful()) {
+            $this->components->warn('Could not install Laravel Boost: ' . $result->errorOutput());
+
+            return;
+        }
+
+        $this->call('boost:install', ['--no-interaction' => true]);
     }
 
     protected function parseCsv(?string $value, array $default): array
