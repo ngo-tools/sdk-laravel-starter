@@ -155,7 +155,9 @@ class InstallCommand extends Command
             return;
         }
 
-        $this->call('boost:install', ['--no-interaction' => true]);
+        // Run boost:install as a separate process — the current Artisan kernel
+        // doesn't know about the newly installed package's commands.
+        Process::run('php artisan boost:install --no-interaction');
     }
 
     protected function parseCsv(?string $value, array $default): array
