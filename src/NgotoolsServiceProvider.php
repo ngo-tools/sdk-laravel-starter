@@ -2,9 +2,11 @@
 
 namespace NgoTools\LaravelStarter;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use NgoTools\LaravelStarter\Commands\DevCommand;
 use NgoTools\LaravelStarter\Commands\InstallCommand;
+use NgoTools\LaravelStarter\Http\Middleware\AllowIframeEmbedding;
 
 class NgotoolsServiceProvider extends ServiceProvider
 {
@@ -31,11 +33,15 @@ class NgotoolsServiceProvider extends ServiceProvider
         }
 
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'ngotools');
-        $this->loadRoutesFrom(__DIR__ . '/../routes/ngotools.php');
 
-        if (file_exists($uiRoutes = base_path('routes/ngotools-ui.php'))) {
-            $this->loadRoutesFrom($uiRoutes);
-        }
+        Route::middleware([AllowIframeEmbedding::class])
+            ->group(function () {
+                $this->loadRoutesFrom(__DIR__ . '/../routes/ngotools.php');
+
+                if (file_exists($uiRoutes = base_path('routes/ngotools-ui.php'))) {
+                    $this->loadRoutesFrom($uiRoutes);
+                }
+            });
 
         if (file_exists($webhookRoutes = base_path('routes/ngotools-webhooks.php'))) {
             $this->loadRoutesFrom($webhookRoutes);
