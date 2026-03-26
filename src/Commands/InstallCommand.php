@@ -3,7 +3,6 @@
 namespace NgoTools\LaravelStarter\Commands;
 
 use Illuminate\Console\Command;
-use NgoTools\LaravelStarter\Support\ManifestGenerator;
 
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\text;
@@ -92,20 +91,8 @@ class InstallCommand extends Command
             $this->writeEnvValue('NGOTOOLS_API_URL', $apiUrl);
         }
 
-        // Generate manifest
-        $slug = str($name)->slug()->toString();
-        $generator = new ManifestGenerator;
-        $manifest = $generator->generate([
-            'slug' => $slug,
-            'name' => $name,
-            'scopes' => $scopes,
-            'ui_slots' => $uiSlots,
-            'webhook_events' => $webhookEvents,
-        ]);
-        $generator->writeToFile($manifest, base_path());
-
-        // Publish views for selected slots
-        $this->callSilently('vendor:publish', ['--tag' => 'ngotools-views', '--force' => true]);
+        // Create view files for selected UI slots
+        $this->createViews($uiSlots);
 
         // Publish webhook route if webhooks selected
         if (! empty($webhookEvents)) {
@@ -113,19 +100,18 @@ class InstallCommand extends Command
         }
 
         // Publish UI routes
-        $this->publishUiRoutes($uiSlots, $webhookEvents);
+        $this->publishUiRoutes($uiSlots);
 
         $this->newLine();
         $this->components->info('NGO.Tools app setup complete!');
         $this->newLine();
 
+        $items = ['Config: config/ngotools.php'];
         if (! empty($uiSlots)) {
-            $this->components->bulletList([
-                'Manifest: .well-known/ngotools.json',
-                'Views: resources/views/vendor/ngotools/pages/',
-                'Config: config/ngotools.php',
-            ]);
+            $items[] = 'Views: resources/views/ngotools/pages/';
         }
+        $items[] = 'Routes: routes/ngotools-ui.php';
+        $this->components->bulletList($items);
 
         $this->newLine();
         $this->components->info('Run `php artisan ngotools:dev` to start the development server with tunnel.');
@@ -159,6 +145,129 @@ class InstallCommand extends Command
         }
 
         file_put_contents($envPath, $content);
+    }
+
+    protected function createViews(array $uiSlots): void
+    {
+        $viewDir = resource_path('views/ngotools/pages');
+
+        if (! is_dir($viewDir)) {
+            mkdir($viewDir, 0755, true);
+        }
+
+        foreach ($uiSlots as $slot) {
+            $filename = match ($slot) {
+                'navigation_entry' => 'navigation-page.blade.php',
+                'dashboard_card' => 'dashboard-widget.blade.php',
+                'contact_tab' => 'contact-tab.blade.php',
+                default => null,
+            };
+
+            if (! $filename) {
+                continue;
+            }
+
+            $path = $viewDir . '/' . $filename;
+
+            if (file_exists($path)) {
+                continue;
+            }
+
+            $content = match ($slot) {
+                'navigation_entry' => $this->stubNavigationPage(),
+                'dashboard_card' => $this->stubDashboardWidget(),
+                'contact_tab' => $this->stubContactTab(),
+            };
+
+            file_put_contents($path, $content);
+        }
+    }
+
+    protected function stubNavigationPage(): string
+    {
+        return <<<'BLADE'
+@extends('ngotools::layouts.app')
+
+@section('content')
+<div class="p-6">
+    <h1 class="text-2xl font-bold">{{ config('app.name') }}</h1>
+
+    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Connected as <strong id="ngt-user-name">...</strong>
+        </p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
+            Tenant: <span id="ngt-tenant-id">...</span> &middot;
+            Locale: <span id="ngt-locale">...</span>
+        </p>
+    </div>
+
+    <div class="mt-6">
+        <p class="text-gray-600 dark:text-gray-400">
+            Your app is running. Edit
+            <code class="rounded bg-gray-100 px-1.5 py-0.5 text-sm dark:bg-gray-800">resources/views/ngotools/pages/navigation-page.blade.php</code>
+            to get started.
+        </p>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    document.addEventListener('ngotools:init', function(e) {
+        var state = e.detail;
+        document.getElementById('ngt-user-name').textContent = state.user.name;
+        document.getElementById('ngt-tenant-id').textContent = state.tenantId;
+        document.getElementById('ngt-locale').textContent = state.locale;
+    });
+</script>
+@endpush
+@endsection
+BLADE;
+    }
+
+    protected function stubDashboardWidget(): string
+    {
+        return <<<'BLADE'
+@extends('ngotools::layouts.app')
+
+@section('content')
+<div class="p-4">
+    <h2 class="text-lg font-semibold">{{ config('app.name') }}</h2>
+    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Dashboard widget is working.
+    </p>
+</div>
+@endsection
+BLADE;
+    }
+
+    protected function stubContactTab(): string
+    {
+        return <<<'BLADE'
+@extends('ngotools::layouts.app')
+
+@section('content')
+<div class="p-4">
+    <h2 class="text-lg font-semibold">{{ config('app.name') }}</h2>
+
+    <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Contact: <strong id="ngt-entity-id">...</strong>
+        </p>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    document.addEventListener('ngotools:init', function(e) {
+        var state = e.detail;
+        var entityId = state.context?.entityId ?? 'N/A';
+        document.getElementById('ngt-entity-id').textContent = '#' + entityId;
+    });
+</script>
+@endpush
+@endsection
+BLADE;
     }
 
     protected function publishWebhookRoute(): void
@@ -196,7 +305,7 @@ PHP;
         file_put_contents($routesPath, $stub);
     }
 
-    protected function publishUiRoutes(array $uiSlots, array $webhookEvents): void
+    protected function publishUiRoutes(array $uiSlots): void
     {
         $routesPath = base_path('routes/ngotools-ui.php');
 
@@ -204,13 +313,13 @@ PHP;
             return;
         }
 
-        $routes = "<?php\n\nuse Illuminate\Support\Facades\Route;\n\n";
+        $routes = "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n\n";
 
         foreach ($uiSlots as $slot) {
             $routes .= match ($slot) {
-                'navigation_entry' => "Route::get('ui', fn () => view('ngotools::pages.navigation-page'));\n",
-                'dashboard_card' => "Route::get('ui/widget', fn () => view('ngotools::pages.dashboard-widget'));\n",
-                'contact_tab' => "Route::get('ui/contact', fn () => view('ngotools::pages.contact-tab'));\n",
+                'navigation_entry' => "Route::get('ui', fn () => view('ngotools.pages.navigation-page'));\n",
+                'dashboard_card' => "Route::get('ui/widget', fn () => view('ngotools.pages.dashboard-widget'));\n",
+                'contact_tab' => "Route::get('ui/contact', fn () => view('ngotools.pages.contact-tab'));\n",
                 default => '',
             };
         }

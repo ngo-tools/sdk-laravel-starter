@@ -17,7 +17,7 @@
     <div class="mt-6">
         <p class="text-gray-600 dark:text-gray-400">
             Your app is running. Edit
-            <code class="rounded bg-gray-100 px-1.5 py-0.5 text-sm dark:bg-gray-800">resources/views/vendor/ngotools/pages/navigation-page.blade.php</code>
+            <code class="rounded bg-gray-100 px-1.5 py-0.5 text-sm dark:bg-gray-800">resources/views/ngotools/pages/navigation-page.blade.php</code>
             to get started.
         </p>
     </div>

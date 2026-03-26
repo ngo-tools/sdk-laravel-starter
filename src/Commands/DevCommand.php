@@ -105,6 +105,7 @@ class DevCommand extends Command
             $response = Http::put("{$apiUrl}/api/tools-dev/tunnel-url", [
                 'dev_token' => $devToken,
                 'tunnel_url' => $tunnelUrl,
+                'origin' => $origin,
             ]);
 
             if ($response->successful()) {

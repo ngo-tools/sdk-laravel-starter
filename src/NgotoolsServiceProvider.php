@@ -28,10 +28,6 @@ class NgotoolsServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../routes/ngotools.php' => base_path('routes/ngotools.php'),
             ], 'ngotools-routes');
-
-            $this->publishes([
-                __DIR__ . '/../resources/views' => resource_path('views/vendor/ngotools'),
-            ], 'ngotools-views');
         }
 
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'ngotools');
