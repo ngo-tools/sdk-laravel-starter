@@ -14,7 +14,7 @@
 <body class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
     @yield('content')
 
-    <script src="{{ rtrim(config('ngotools.api_url'), '/') }}/../sdk/bridge.js"></script>
+    <script src="{{ rtrim(config('ngotools.api_url'), '/') }}/sdk/bridge.js"></script>
     <script>
         NGOTools.onInit(function(state) {
             NGOTools.applyTheme(state.theme);

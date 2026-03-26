@@ -5,7 +5,6 @@ namespace NgoTools\LaravelStarter;
 use Illuminate\Support\ServiceProvider;
 use NgoTools\LaravelStarter\Commands\DevCommand;
 use NgoTools\LaravelStarter\Commands\InstallCommand;
-use NgoTools\LaravelStarter\Commands\SyncCommand;
 
 class NgotoolsServiceProvider extends ServiceProvider
 {
@@ -20,7 +19,6 @@ class NgotoolsServiceProvider extends ServiceProvider
             $this->commands([
                 InstallCommand::class,
                 DevCommand::class,
-                SyncCommand::class,
             ]);
 
             $this->publishes([
