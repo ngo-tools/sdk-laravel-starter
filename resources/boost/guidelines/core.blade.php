@@ -89,6 +89,8 @@ NGO.Tools sends webhooks to this app when things happen in the platform. The app
 Available events: `contact.created`, `contact.updated`, `contact.deleted`, `donation.created`
 
 - Webhook handler: `routes/ngotools-webhooks.php`
+- The webhook URL and subscribed events are configured **in the NGO.Tools admin UI**, not in this app. This app just listens on `POST /webhooks`.
+- The `NGOTOOLS_WEBHOOK_SECRET` is generated during bootstrap and stored in `.env`
 - Signature header: `X-NGOTools-Signature` (HMAC-SHA256)
 - Timestamp header: `X-NGOTools-Timestamp` (unix seconds)
 - Event header: `X-NGOTools-Event` (e.g. `contact.created`)
