@@ -182,7 +182,8 @@ class InstallCommand extends Command
         if (str_contains($content, "{$key}=")) {
             $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
         } else {
-            $content .= "\n{$key}={$value}";
+            $prefix = ($content !== '' && ! str_ends_with($content, "\n")) ? "\n" : '';
+            $content .= "{$prefix}{$key}={$value}\n";
         }
 
         file_put_contents($envPath, $content);
