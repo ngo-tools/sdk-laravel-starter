@@ -45,6 +45,7 @@ class InstallCommand extends Command
                     'navigation_entry' => 'Navigation Entry (own page)',
                     'dashboard_card' => 'Dashboard Widget',
                     'contact_tab' => 'Contact Tab',
+                    'contact_bulk_action' => 'Contact Bulk Action',
                 ],
                 default: ['navigation_entry'],
             );
@@ -219,6 +220,7 @@ class InstallCommand extends Command
                 'navigation_entry' => 'navigation-page.blade.php',
                 'dashboard_card' => 'dashboard-widget.blade.php',
                 'contact_tab' => 'contact-tab.blade.php',
+                'contact_bulk_action' => 'bulk-contacts.blade.php',
                 default => null,
             };
 
@@ -236,6 +238,7 @@ class InstallCommand extends Command
                 'navigation_entry' => $this->stubNavigationPage(),
                 'dashboard_card' => $this->stubDashboardWidget(),
                 'contact_tab' => $this->stubContactTab(),
+                'contact_bulk_action' => $this->stubBulkContacts(),
             };
 
             file_put_contents($path, $content);
@@ -329,6 +332,37 @@ BLADE;
 BLADE;
     }
 
+    protected function stubBulkContacts(): string
+    {
+        return <<<'BLADE'
+@extends('ngotools::layouts.app')
+
+@section('content')
+<div class="p-4">
+    <h2 class="text-lg font-semibold">{{ config('app.name') }}</h2>
+
+    <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Selected contacts: <strong id="ngt-selected-count">...</strong>
+        </p>
+        <pre id="ngt-selected-ids" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></pre>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    document.addEventListener('ngotools:init', function(e) {
+        var state = e.detail;
+        var ids = state.context?.selectedIds ?? [];
+        document.getElementById('ngt-selected-count').textContent = ids.length;
+        document.getElementById('ngt-selected-ids').textContent = JSON.stringify(ids);
+    });
+</script>
+@endpush
+@endsection
+BLADE;
+    }
+
     protected function publishWebhookRoute(): void
     {
         $routesPath = base_path('routes/ngotools-webhooks.php');
@@ -379,6 +413,7 @@ PHP;
                 'navigation_entry' => "Route::get('ui', fn () => view('ngotools.pages.navigation-page'));\n",
                 'dashboard_card' => "Route::get('ui/widget', fn () => view('ngotools.pages.dashboard-widget'));\n",
                 'contact_tab' => "Route::get('ui/contact', fn () => view('ngotools.pages.contact-tab'));\n",
+                'contact_bulk_action' => "Route::get('ui/bulk-contacts', fn () => view('ngotools.pages.bulk-contacts'));\n",
                 default => '',
             };
         }
