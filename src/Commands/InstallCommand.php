@@ -14,7 +14,7 @@ class InstallCommand extends Command
     protected $signature = 'ngotools:install
         {--token= : Bootstrap token from NGO.Tools}
         {--api= : NGO.Tools API base URL}
-        {--port=8001 : Development server port}
+        {--port= : Development server port (auto-detects free port if omitted)}
         {--name= : App name}
         {--ui-slots= : Comma-separated UI slots (navigation_entry,dashboard_card,contact_tab)}
         {--webhooks= : Comma-separated webhook events (contact.created,donation.created,...)}
@@ -36,7 +36,7 @@ class InstallCommand extends Command
 
         $token = $this->option('token');
         $apiUrl = $this->option('api');
-        $port = (int) $this->option('port');
+        $port = $this->option('port') ? (int) $this->option('port') : $this->findFreePort();
 
         if (! $this->option('non-interactive')) {
             $uiSlots = multiselect(
@@ -158,6 +158,23 @@ class InstallCommand extends Command
         // Run boost:install as a separate process — the current Artisan kernel
         // doesn't know about the newly installed package's commands.
         Process::run('php artisan boost:install --no-interaction');
+    }
+
+    protected function findFreePort(int $start = 8001, int $end = 8020): int
+    {
+        for ($port = $start; $port <= $end; $port++) {
+            $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
+
+            if ($socket) {
+                fclose($socket);
+
+                continue;
+            }
+
+            return $port;
+        }
+
+        return $start;
     }
 
     protected function parseCsv(?string $value, array $default): array
