@@ -105,6 +105,9 @@ class InstallCommand extends Command
         // Publish UI routes
         $this->publishUiRoutes($uiSlots);
 
+        // Remove default Laravel welcome route (conflicts with our / route)
+        $this->removeDefaultWelcomeRoute();
+
         $this->newLine();
         $this->components->info('NGO.Tools app setup complete!');
         $this->newLine();
@@ -410,14 +413,38 @@ PHP;
 
         foreach ($uiSlots as $slot) {
             $routes .= match ($slot) {
-                'navigation_entry' => "Route::get('ui', fn () => view('ngotools.pages.navigation-page'));\n",
-                'dashboard_card' => "Route::get('ui/widget', fn () => view('ngotools.pages.dashboard-widget'));\n",
-                'contact_tab' => "Route::get('ui/contact', fn () => view('ngotools.pages.contact-tab'));\n",
-                'contact_bulk_action' => "Route::get('ui/bulk-contacts', fn () => view('ngotools.pages.bulk-contacts'));\n",
+                'navigation_entry' => "Route::get('/', fn () => view('ngotools.pages.navigation-page'));\n",
+                'dashboard_card' => "Route::get('widget', fn () => view('ngotools.pages.dashboard-widget'));\n",
+                'contact_tab' => "Route::get('contact', fn () => view('ngotools.pages.contact-tab'));\n",
+                'contact_bulk_action' => "Route::get('bulk-contacts', fn () => view('ngotools.pages.bulk-contacts'));\n",
                 default => '',
             };
         }
 
         file_put_contents($routesPath, $routes);
+    }
+
+    protected function removeDefaultWelcomeRoute(): void
+    {
+        $webRoutesPath = base_path('routes/web.php');
+
+        if (! file_exists($webRoutesPath)) {
+            return;
+        }
+
+        $content = file_get_contents($webRoutesPath);
+        $original = $content;
+
+        // Remove the default Laravel welcome route
+        $content = preg_replace(
+            '/Route::get\s*\(\s*[\'"]\/[\'"]\s*,\s*function\s*\(\)\s*\{[^}]*return\s+view\s*\(\s*[\'"]welcome[\'"]\s*\)\s*;?\s*\}\s*\)\s*;?\s*\n?/',
+            '',
+            $content,
+        );
+
+        if ($content !== $original) {
+            file_put_contents($webRoutesPath, $content);
+            $this->components->info('Removed default welcome route from routes/web.php');
+        }
     }
 }
