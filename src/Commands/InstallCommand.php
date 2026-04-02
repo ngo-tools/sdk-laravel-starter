@@ -112,6 +112,9 @@ class InstallCommand extends Command
         // Remove default Laravel welcome route (conflicts with our / route)
         $this->removeDefaultWelcomeRoute();
 
+        // Publish server.php for CORS on static files in dev server
+        $this->publishServerPhp();
+
         $this->newLine();
         $this->components->info('NGO.Tools app setup complete!');
         $this->newLine();
@@ -466,6 +469,69 @@ PHP;
 
         $this->components->info('Added Filament CSS imports to resources/css/app.css');
         $this->components->warn('Run `npm run build` to compile your assets.');
+    }
+
+    protected function publishServerPhp(): void
+    {
+        $serverPath = base_path('server.php');
+
+        if (file_exists($serverPath)) {
+            return;
+        }
+
+        $stub = <<<'PHP'
+<?php
+
+$publicPath = getcwd();
+
+$uri = urldecode(
+    parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? ''
+);
+
+// For non-static-file requests, route through Laravel as usual.
+if ($uri === '/' || ! file_exists($publicPath.$uri)) {
+    $formattedDateTime = date('D M j H:i:s Y');
+    $requestMethod = $_SERVER['REQUEST_METHOD'];
+    $remoteAddress = $_SERVER['REMOTE_ADDR'].':'.$_SERVER['REMOTE_PORT'];
+
+    file_put_contents('php://stdout', "[$formattedDateTime] $remoteAddress [$requestMethod] URI: $uri\n");
+
+    require_once $publicPath.'/index.php';
+
+    return;
+}
+
+// Serve static files with CORS headers so the app works inside iFrames
+// (e.g. when embedded in the NGO.Tools platform via cloudflared tunnel).
+$mimeTypes = [
+    'css' => 'text/css',
+    'js' => 'application/javascript',
+    'json' => 'application/json',
+    'png' => 'image/png',
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'gif' => 'image/gif',
+    'svg' => 'image/svg+xml',
+    'ico' => 'image/x-icon',
+    'woff' => 'font/woff',
+    'woff2' => 'font/woff2',
+    'ttf' => 'font/ttf',
+    'map' => 'application/json',
+];
+
+$ext = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
+$mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+
+header('Access-Control-Allow-Origin: *');
+header("Content-Type: {$mime}");
+header('Cache-Control: public, max-age=3600');
+
+readfile($publicPath.$uri);
+
+PHP;
+
+        file_put_contents($serverPath, $stub);
+        $this->components->info('Published server.php for CORS-enabled dev server');
     }
 
     protected function removeDefaultWelcomeRoute(): void

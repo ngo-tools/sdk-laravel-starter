@@ -34,44 +34,80 @@ class DevCommand extends Command
             $this->newLine();
         }
 
-        // Start Laravel dev server
-        $this->components->info("Starting development server on port {$port}...");
+        $tunnelUrl = null;
 
-        $serverProcess = Process::start("php artisan serve --port={$port} --no-reload 2>&1");
-        $this->serverProcess = $serverProcess;
+        // Start tunnel FIRST (if enabled) so we know the URL before starting the server
+        if (! $this->option('no-tunnel') && $isConnected) {
+            $tunnelUrl = $this->startTunnel($port);
 
-        sleep(2); // Give server time to start
-
-        if ($this->option('no-tunnel') || ! $isConnected) {
-            $this->components->info("Server running at http://localhost:{$port}");
-            $this->components->info('Press Ctrl+C to stop.');
-
-            while ($serverProcess->running()) {
-                $output = $serverProcess->latestOutput();
-                if ($output) {
-                    $this->output->write($output);
-                }
-                usleep(100_000);
+            if (! $tunnelUrl) {
+                return self::FAILURE;
             }
 
-            return self::SUCCESS;
+            // Register tunnel URL with NGO.Tools
+            $this->registerTunnel($tunnelUrl, "http://localhost:{$port}", $devToken, $apiUrl);
         }
 
+        // Start Laravel dev server — with APP_URL set to tunnel URL if available
+        $this->components->info("Starting development server on port {$port}...");
+
+        $env = [];
+        if ($tunnelUrl) {
+            $env['APP_URL'] = $tunnelUrl;
+        }
+
+        $serverCmd = "php artisan serve --port={$port} --no-reload 2>&1";
+        $serverProcess = Process::env($env)->start($serverCmd);
+        $this->serverProcess = $serverProcess;
+
+        sleep(2);
+
+        if ($tunnelUrl) {
+            $this->newLine();
+            $this->components->info("Tunnel:  {$tunnelUrl}");
+            $this->components->info("Local:   http://localhost:{$port}");
+        } else {
+            $this->components->info("Server running at http://localhost:{$port}");
+        }
+
+        $this->components->info('Press Ctrl+C to stop.');
+        $this->newLine();
+
+        // Stream output
+        while ($serverProcess->running()) {
+            $serverOutput = $serverProcess->latestOutput();
+            if ($serverOutput) {
+                $this->output->write($serverOutput);
+            }
+
+            if ($this->tunnelProcess?->running()) {
+                $tunnelOutput = $this->tunnelProcess->latestOutput() . $this->tunnelProcess->latestErrorOutput();
+                if ($tunnelOutput) {
+                    $this->output->write($tunnelOutput);
+                }
+            }
+
+            usleep(100_000);
+        }
+
+        return self::SUCCESS;
+    }
+
+    protected function startTunnel(int $port): ?string
+    {
         // Check cloudflared
         $checkResult = Process::run('which cloudflared');
         if (! $checkResult->successful()) {
             $this->components->error('cloudflared is not installed.');
             $this->components->info('Install it: brew install cloudflared');
-            $serverProcess->signal(SIGTERM);
 
-            return self::FAILURE;
+            return null;
         }
 
-        // Start cloudflared tunnel
         $this->components->info('Starting cloudflared tunnel...');
 
         $origin = "http://localhost:{$port}";
-        $tunnelCmd = "cloudflared tunnel --config /dev/null --url {$origin} --http-host-header localhost 2>&1";
+        $tunnelCmd = "cloudflared tunnel --config /dev/null --url {$origin} 2>&1";
         $tunnelProcess = Process::start($tunnelCmd);
         $this->tunnelProcess = $tunnelProcess;
 
@@ -92,15 +128,18 @@ class DevCommand extends Command
 
         if (! $tunnelUrl) {
             $this->components->error('Could not establish tunnel (timeout after 15s).');
-            $serverProcess->signal(SIGTERM);
             $tunnelProcess->signal(SIGTERM);
 
-            return self::FAILURE;
+            return null;
         }
 
         $this->components->info("Tunnel active: {$tunnelUrl}");
 
-        // Register tunnel URL with NGO.Tools
+        return $tunnelUrl;
+    }
+
+    protected function registerTunnel(string $tunnelUrl, string $origin, string $devToken, string $apiUrl): void
+    {
         try {
             $response = Http::put("{$apiUrl}/api/tools-dev/tunnel-url", [
                 'dev_token' => $devToken,
@@ -116,27 +155,6 @@ class DevCommand extends Command
         } catch (\Exception $e) {
             $this->components->warn('Could not reach NGO.Tools API: ' . $e->getMessage());
         }
-
-        $this->newLine();
-        $this->components->info('Development server ready! Press Ctrl+C to stop.');
-        $this->newLine();
-
-        // Stream output
-        while ($serverProcess->running() || $tunnelProcess->running()) {
-            $serverOutput = $serverProcess->latestOutput();
-            $tunnelOutput = $tunnelProcess->latestOutput() . $tunnelProcess->latestErrorOutput();
-
-            if ($serverOutput) {
-                $this->output->write($serverOutput);
-            }
-            if ($tunnelOutput) {
-                $this->output->write($tunnelOutput);
-            }
-
-            usleep(100_000);
-        }
-
-        return self::SUCCESS;
     }
 
     protected function registerShutdownHandler(?string $devToken, ?string $apiUrl): void
