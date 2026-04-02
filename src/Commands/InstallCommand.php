@@ -2,6 +2,7 @@
 
 namespace NgoTools\LaravelStarter\Commands;
 
+use Composer\InstalledVersions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 
@@ -104,6 +105,9 @@ class InstallCommand extends Command
 
         // Publish UI routes
         $this->publishUiRoutes($uiSlots);
+
+        // Add Filament CSS imports to app.css
+        $this->installFilamentCss();
 
         // Remove default Laravel welcome route (conflicts with our / route)
         $this->removeDefaultWelcomeRoute();
@@ -422,6 +426,46 @@ PHP;
         }
 
         file_put_contents($routesPath, $routes);
+    }
+
+    protected function installFilamentCss(): void
+    {
+        $cssPath = resource_path('css/app.css');
+
+        if (! file_exists($cssPath)) {
+            return;
+        }
+
+        $css = file_get_contents($cssPath);
+
+        if (str_contains($css, 'vendor/filament/support/resources/css/index.css')) {
+            return;
+        }
+
+        $packages = collect([
+            'support',
+            'actions',
+            'forms',
+            'infolists',
+            'notifications',
+            'schemas',
+            'tables',
+        ])->filter(fn (string $package): bool => $package === 'support' || InstalledVersions::isInstalled("filament/{$package}"));
+
+        $imports = $packages
+            ->map(fn (string $package): string => "@import '../../vendor/filament/{$package}/resources/css/index.css';")
+            ->implode("\n");
+
+        $css = preg_replace(
+            "/(@import\s+['\"]tailwindcss['\"];)/",
+            "$1\n{$imports}",
+            $css,
+        );
+
+        file_put_contents($cssPath, $css);
+
+        $this->components->info('Added Filament CSS imports to resources/css/app.css');
+        $this->components->warn('Run `npm run build` to compile your assets.');
     }
 
     protected function removeDefaultWelcomeRoute(): void

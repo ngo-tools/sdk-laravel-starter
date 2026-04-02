@@ -2,6 +2,8 @@
 
 namespace NgoTools\LaravelStarter;
 
+use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentColor;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use NgoTools\LaravelStarter\Commands\DevCommand;
@@ -33,6 +35,11 @@ class NgotoolsServiceProvider extends ServiceProvider
         }
 
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'ngotools');
+
+        FilamentColor::register([
+            'primary' => Color::hex('#134865'),
+            'danger' => Color::Red,
+        ]);
 
         Route::middleware([AllowIframeEmbedding::class])
             ->group(function () {

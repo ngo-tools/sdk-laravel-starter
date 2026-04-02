@@ -10,9 +10,14 @@
             darkMode: 'class',
         }
     </script>
+
+    @filamentStyles
+    @stack('head')
 </head>
 <body class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
     @yield('content')
+
+    @filamentScripts
 
     {{-- NGO.Tools Bridge (inline to avoid PNA/CORS issues in dev tunnels) --}}
     <script>
