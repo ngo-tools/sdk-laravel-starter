@@ -13,7 +13,11 @@
     ],
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.0|^12.0|^13.0"
+        "laravel/framework": "^11.0|^12.0|^13.0",
+        "filament/forms": "^4.0",
+        "filament/tables": "^4.0",
+        "filament/actions": "^4.0",
+        "filament/notifications": "^4.0"
     },
     "suggest": {
         "laravel/boost": "AI coding guidelines for this package (auto-discovered by boost:install)"
